@@ -11,9 +11,7 @@ import { Hyperlane7683 } from "../src/Hyperlane7683.sol";
 import { OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
 import { BatchOpen } from "./DeployBatchOpen.s.sol";
 
-import {
-    OnchainCrossChainOrder
-} from "../src/ERC7683/IERC7683.sol";
+import { OnchainCrossChainOrder } from "../src/ERC7683/IERC7683.sol";
 
 /// @dev See the Solidity Scripting tutorial: https://book.getfoundry.sh/tutorials/solidity-scripting
 contract OpenBatchOrder is Script {
@@ -49,30 +47,23 @@ contract OpenBatchOrder is Script {
             uint32(destinationDomain),
             TypeCasts.addressToBytes32(localRouter),
             fillDeadline,
+            0,
+            1,
             new bytes(0)
         );
 
         OnchainCrossChainOrder[] memory onchainOrders = new OnchainCrossChainOrder[](3);
 
-        onchainOrders[0] = OnchainCrossChainOrder(
-            fillDeadline,
-            OrderEncoder.orderDataType(),
-            OrderEncoder.encode(order)
-        );
+        onchainOrders[0] =
+            OnchainCrossChainOrder(fillDeadline, OrderEncoder.orderDataType(), OrderEncoder.encode(order));
 
         order.senderNonce = senderNonce + 1;
-        onchainOrders[1] = OnchainCrossChainOrder(
-            fillDeadline,
-            OrderEncoder.orderDataType(),
-            OrderEncoder.encode(order)
-        );
+        onchainOrders[1] =
+            OnchainCrossChainOrder(fillDeadline, OrderEncoder.orderDataType(), OrderEncoder.encode(order));
 
         order.senderNonce = senderNonce + 2;
-        onchainOrders[2] = OnchainCrossChainOrder(
-            fillDeadline,
-            OrderEncoder.orderDataType(),
-            OrderEncoder.encode(order)
-        );
+        onchainOrders[2] =
+            OnchainCrossChainOrder(fillDeadline, OrderEncoder.orderDataType(), OrderEncoder.encode(order));
 
         BatchOpen(batchOpen).openOrders(onchainOrders, inputToken, amountIn * 3);
 

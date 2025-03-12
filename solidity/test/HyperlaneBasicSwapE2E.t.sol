@@ -125,6 +125,8 @@ contract HyperlaneBasicSwapE2E is BaseTest {
             destinationDomain: destination,
             destinationSettler: address(destinationRouter).addressToBytes32(),
             fillDeadline: uint32(block.timestamp + 100),
+            startTime: 0,
+            parts: 1,
             data: new bytes(0)
         });
     }

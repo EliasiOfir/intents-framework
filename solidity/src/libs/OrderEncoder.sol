@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
+struct FilledPart {
+    uint32 lastPart;
+    uint256 time;
+}
+
 struct OrderData {
     bytes32 sender;
     bytes32 recipient;
@@ -13,6 +18,9 @@ struct OrderData {
     uint32 destinationDomain;
     bytes32 destinationSettler;
     uint32 fillDeadline;
+    uint32 startTime;
+    uint8 parts;
+    //        uint256 duration;
     bytes data;
 }
 
@@ -30,6 +38,9 @@ library OrderEncoder {
         "uint32 destinationDomain,",
         "bytes32 destinationSettler,",
         "uint32 fillDeadline,",
+        "uint32 startTime,",
+        "uint8 parts,",
+        //        "uint256 duration,",
         "bytes data)"
     );
 

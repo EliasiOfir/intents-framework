@@ -23,7 +23,7 @@ import {
     Output,
     FillInstruction
 } from "../src/ERC7683/IERC7683.sol";
-import { OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
+import { TokenOut, OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
 
 event Settle(bytes32[] orderIds, bytes[] ordersFillerData);
 
@@ -173,19 +173,20 @@ contract BasicSwap7683Test is BaseTest {
 
     receive() external payable { }
 
-    function prepareOrderData() internal view returns (OrderData memory) {
+function prepareOrderData() internal view returns (OrderData memory) {
+        TokenOut[] memory tokenOuts = new TokenOut[](1);
+        tokenOuts[0] = TokenOut(TypeCasts.addressToBytes32(address(outputToken)), amount, TypeCasts.addressToBytes32(karpincho));
+
         return OrderData({
             sender: TypeCasts.addressToBytes32(kakaroto),
-            recipient: TypeCasts.addressToBytes32(karpincho),
             inputToken: TypeCasts.addressToBytes32(address(inputToken)),
-            outputToken: TypeCasts.addressToBytes32(address(outputToken)),
             amountIn: amount,
-            amountOut: amount,
             senderNonce: 1,
             originDomain: origin,
             destinationDomain: destination,
             destinationSettler: counterpart.addressToBytes32(),
             fillDeadline: uint32(block.timestamp + 100),
+            tokenOuts: tokenOuts,
             data: new bytes(0)
         });
     }
@@ -317,7 +318,7 @@ contract BasicSwap7683Test is BaseTest {
     function test__handleSettleOrder_native_works() public {
         OrderData memory orderData = prepareOrderData();
         orderData.inputToken = TypeCasts.addressToBytes32(address(0));
-        orderData.outputToken = TypeCasts.addressToBytes32(address(0));
+        orderData.tokenOuts[0].outputToken = TypeCasts.addressToBytes32(address(0));
         bytes32 orderId = bytes32("order1");
 
         // set the order as opened
@@ -440,7 +441,7 @@ contract BasicSwap7683Test is BaseTest {
     function test__handleRefundOrder_native_works() public {
         OrderData memory orderData = prepareOrderData();
         orderData.inputToken = TypeCasts.addressToBytes32(address(0));
-        orderData.outputToken = TypeCasts.addressToBytes32(address(0));
+        orderData.tokenOuts[0].outputToken = TypeCasts.addressToBytes32(address(0));
         bytes32 orderId = bytes32("order1");
 
         // set the order as opened
@@ -651,7 +652,7 @@ contract BasicSwap7683Test is BaseTest {
     function test__fillOrder_native_works() public {
         OrderData memory orderData = prepareOrderData();
         orderData.inputToken = TypeCasts.addressToBytes32(address(0));
-        orderData.outputToken = TypeCasts.addressToBytes32(address(0));
+        orderData.tokenOuts[0].outputToken = TypeCasts.addressToBytes32(address(0));
         orderData.destinationDomain = origin;
         bytes32 orderId = OrderEncoder.id(orderData);
         bytes memory originData = OrderEncoder.encode(orderData);
@@ -673,7 +674,7 @@ contract BasicSwap7683Test is BaseTest {
     function test__fillOrder_native_InvalidNativeAmount() public {
         OrderData memory orderData = prepareOrderData();
         orderData.inputToken = TypeCasts.addressToBytes32(address(0));
-        orderData.outputToken = TypeCasts.addressToBytes32(address(0));
+        orderData.tokenOuts[0].outputToken = TypeCasts.addressToBytes32(address(0));
         orderData.destinationDomain = origin;
         bytes32 orderId = OrderEncoder.id(orderData);
         bytes memory originData = OrderEncoder.encode(orderData);

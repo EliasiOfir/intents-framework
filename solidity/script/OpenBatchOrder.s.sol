@@ -8,7 +8,7 @@ import { TypeCasts } from "@hyperlane-xyz/libs/TypeCasts.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import { Hyperlane7683 } from "../src/Hyperlane7683.sol";
-import { OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
+import { TokenOut, OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
 import { BatchOpen } from "./DeployBatchOpen.s.sol";
 
 import {
@@ -37,18 +37,23 @@ contract OpenBatchOrder is Script {
 
         ERC20(inputToken).approve(batchOpen, amountIn * 3);
 
+        TokenOut[] memory tokenOuts = new TokenOut[](1);
+        tokenOuts[0] = TokenOut(
+            TypeCasts.addressToBytes32(outputToken),
+            amountOut,
+            TypeCasts.addressToBytes32(recipient)
+        );
+
         OrderData memory order = OrderData(
             TypeCasts.addressToBytes32(sender),
-            TypeCasts.addressToBytes32(recipient),
             TypeCasts.addressToBytes32(inputToken),
-            TypeCasts.addressToBytes32(outputToken),
             amountIn,
-            amountOut,
             senderNonce,
             originDomain,
             uint32(destinationDomain),
             TypeCasts.addressToBytes32(localRouter),
             fillDeadline,
+            tokenOuts,
             new bytes(0)
         );
 

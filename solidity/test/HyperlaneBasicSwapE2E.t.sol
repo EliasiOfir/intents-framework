@@ -18,7 +18,7 @@ import { BaseTest, TestInterchainGasPaymaster } from "./BaseTest.sol";
 import { Base7683 } from "../src/Base7683.sol";
 import { Hyperlane7683 } from "../src/Hyperlane7683.sol";
 import { Hyperlane7683Message } from "../src/libs/Hyperlane7683Message.sol";
-import { OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
+import { TokenOut, OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
 import {
     GaslessCrossChainOrder,
     OnchainCrossChainOrder,
@@ -113,18 +113,20 @@ contract HyperlaneBasicSwapE2E is BaseTest {
     receive() external payable { }
 
     function _prepareOrderData() internal view returns (OrderData memory) {
-        return OrderData({
+        TokenOut[] memory tokenOuts = new TokenOut[](1);
+        tokenOuts[0] = TokenOut(TypeCasts.addressToBytes32(address(outputToken)), amount, TypeCasts.addressToBytes32(karpincho));
+
+
+    return OrderData({
             sender: TypeCasts.addressToBytes32(kakaroto),
-            recipient: TypeCasts.addressToBytes32(karpincho),
             inputToken: TypeCasts.addressToBytes32(address(inputToken)),
-            outputToken: TypeCasts.addressToBytes32(address(outputToken)),
             amountIn: amount,
-            amountOut: amount,
             senderNonce: 1,
             originDomain: origin,
             destinationDomain: destination,
             destinationSettler: address(destinationRouter).addressToBytes32(),
             fillDeadline: uint32(block.timestamp + 100),
+            tokenOuts: tokenOuts,
             data: new bytes(0)
         });
     }
@@ -238,7 +240,7 @@ contract HyperlaneBasicSwapE2E is BaseTest {
         // open
         OrderData memory orderData = _prepareOrderData();
         orderData.inputToken = TypeCasts.addressToBytes32(address(0));
-        orderData.outputToken = TypeCasts.addressToBytes32(address(0));
+        orderData.tokenOuts[0].outputToken = TypeCasts.addressToBytes32(address(0));
         OnchainCrossChainOrder memory order =
             _prepareOnchainOrder(OrderEncoder.encode(orderData), orderData.fillDeadline, OrderEncoder.orderDataType());
 
@@ -571,7 +573,7 @@ contract HyperlaneBasicSwapE2E is BaseTest {
         // open
         OrderData memory orderData = _prepareOrderData();
         orderData.inputToken = TypeCasts.addressToBytes32(address(0));
-        orderData.outputToken = TypeCasts.addressToBytes32(address(0));
+        orderData.tokenOuts[0].outputToken = TypeCasts.addressToBytes32(address(0));
         OnchainCrossChainOrder memory order =
             _prepareOnchainOrder(OrderEncoder.encode(orderData), orderData.fillDeadline, OrderEncoder.orderDataType());
 

@@ -3,33 +3,35 @@ pragma solidity 0.8.25;
 
 struct OrderData {
     bytes32 sender;
-    bytes32 recipient;
     bytes32 inputToken;
-    bytes32 outputToken;
     uint256 amountIn;
-    uint256 amountOut;
     uint256 senderNonce;
     uint32 originDomain;
     uint32 destinationDomain;
     bytes32 destinationSettler;
     uint32 fillDeadline;
+    TokenOut[] tokenOuts;
     bytes data;
+}
+
+struct TokenOut {
+    bytes32 outputToken;
+    uint256 amountOut;
+    bytes32 recipient;
 }
 
 library OrderEncoder {
     bytes constant ORDER_DATA_TYPE = abi.encodePacked(
         "OrderData(",
         "bytes32 sender,",
-        "bytes32 recipient,",
         "bytes32 inputToken,",
-        "bytes32 outputToken,",
         "uint256 amountIn,",
-        "uint256 amountOut,",
         "uint256 senderNonce,",
         "uint32 originDomain,",
         "uint32 destinationDomain,",
         "bytes32 destinationSettler,",
         "uint32 fillDeadline,",
+        "TokenOut[] tokenOuts,"
         "bytes data)"
     );
 

@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Script } from "forge-std/Script.sol";
-import { console2 } from "forge-std/console2.sol";
-
-import { TypeCasts } from "@hyperlane-xyz/libs/TypeCasts.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-import { Hyperlane7683 } from "../src/Hyperlane7683.sol";
-import { OrderData, OrderEncoder } from "../src/libs/OrderEncoder.sol";
-
+import "../src/libs/OrderEncoder.sol";
 import {
-    OnchainCrossChainOrder
+OnchainCrossChainOrder
 } from "../src/ERC7683/IERC7683.sol";
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Hyperlane7683} from "../src/Hyperlane7683.sol";
+
+import {OrderData, OrderEncoder} from "../src/libs/OrderEncoder.sol";
+import {Script} from "forge-std/Script.sol";
+
+import {TypeCasts} from "@hyperlane-xyz/libs/TypeCasts.sol";
+import {console2} from "forge-std/console2.sol";
 
 /// @dev See the Solidity Scripting tutorial: https://book.getfoundry.sh/tutorials/solidity-scripting
 contract OpenOrder is Script {
@@ -35,18 +36,23 @@ contract OpenOrder is Script {
 
         ERC20(inputToken).approve(localRouter, amountIn);
 
+        TokenOut[] memory tokenOuts = new TokenOut[](1);
+        tokenOuts[0] = TokenOut(
+            TypeCasts.addressToBytes32(outputToken),
+            amountOut,
+            TypeCasts.addressToBytes32(recipient)
+        );
+
         OrderData memory order = OrderData(
             TypeCasts.addressToBytes32(sender),
-            TypeCasts.addressToBytes32(recipient),
             TypeCasts.addressToBytes32(inputToken),
-            TypeCasts.addressToBytes32(outputToken),
             amountIn,
-            amountOut,
             senderNonce,
             originDomain,
             uint32(destinationDomain),
             TypeCasts.addressToBytes32(localRouter),
             fillDeadline,
+            tokenOuts,
             new bytes(0)
         );
 

@@ -336,12 +336,15 @@ abstract contract BasicSwap7683 is Base7683 {
 
         // this can be used by the filler to approve the tokens to be spent on destination
         Output[] memory maxSpent = new Output[](1);
-        maxSpent[0] = Output({
-            token: orderData.outputToken,
-            amount: orderData.amountOut,
-            recipient: orderData.destinationSettler,
-            chainId: orderData.destinationDomain
-        });
+
+        for (uint256 i = 0; i < orderData.tokenOuts.length; i++) {
+            maxSpent[i] = Output({
+                token: orderData.tokenOuts[i].outputToken,
+                amount: orderData.tokenOuts[i].amountOut,
+                recipient: orderData.destinationSettler,
+                chainId: orderData.destinationDomain
+            });
+        }
 
         // this can be used by the filler know how much it can expect to receive
         Output[] memory minReceived = new Output[](1);
@@ -389,14 +392,16 @@ abstract contract BasicSwap7683 is Base7683 {
         if (block.timestamp > orderData.fillDeadline) revert OrderFillExpired();
         if (orderData.destinationDomain != _localDomain()) revert InvalidOrderDomain();
 
-        address outputToken = TypeCasts.bytes32ToAddress(orderData.outputToken);
-        address recipient = TypeCasts.bytes32ToAddress(orderData.recipient);
+        for (uint256 i = 0; i < orderData.tokenOuts.length; i++) {
+            address outputToken = TypeCasts.bytes32ToAddress(orderData.tokenOuts[i].outputToken);
+            address recipient = TypeCasts.bytes32ToAddress(orderData.tokenOuts[i].recipient);
 
-        if (outputToken == address(0)) {
-            if (orderData.amountOut != msg.value) revert InvalidNativeAmount();
-            Address.sendValue(payable(recipient), orderData.amountOut);
-        } else {
-            IERC20(outputToken).safeTransferFrom(msg.sender, recipient, orderData.amountOut);
+            if (outputToken == address(0)) {
+                if (orderData.tokenOuts[i].amountOut != msg.value) revert InvalidNativeAmount();
+                Address.sendValue(payable(recipient), orderData.tokenOuts[i].amountOut);
+            } else {
+                IERC20(outputToken).safeTransferFrom(msg.sender, recipient, orderData.tokenOuts[i].amountOut);
+            }
         }
     }
 

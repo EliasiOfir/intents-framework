@@ -45,6 +45,7 @@ abstract contract Base7683 is IOriginSettler, IDestinationSettler {
     bytes32 public constant UNKNOWN = "";
     bytes32 public constant OPENED = "OPENED";
     bytes32 public constant FILLED = "FILLED";
+    bytes32 public constant PART = "PART";
 
     // ============ Structs ============
     /**
@@ -229,11 +230,10 @@ abstract contract Base7683 is IOriginSettler, IDestinationSettler {
      * contain the bytes32 encoded address of the receiver which is used at settlement time
      */
     function fill(bytes32 _orderId, bytes calldata _originData, bytes calldata _fillerData) external payable virtual {
-        if (orderStatus[_orderId] != UNKNOWN) revert InvalidOrderStatus();
+        if (orderStatus[_orderId] != UNKNOWN && orderStatus[_orderId] != PART) revert InvalidOrderStatus();
 
-        _fillOrder(_orderId, _originData, _fillerData);
+        orderStatus[_orderId] = _fillOrder(_orderId, _originData, _fillerData);
 
-        orderStatus[_orderId] = FILLED;
         filledOrders[_orderId] = FilledOrder(_originData, _fillerData);
 
         emit Filled(_orderId, _originData, _fillerData);
@@ -416,7 +416,10 @@ abstract contract Base7683 is IOriginSettler, IDestinationSettler {
      * @return _orderId The unique identifier for the order.
      * @return _nonce The nonce associated with the order.
      */
-    function _resolveOrder(GaslessCrossChainOrder memory _order, bytes calldata _originFillerData)
+    function _resolveOrder(
+        GaslessCrossChainOrder memory _order,
+        bytes calldata _originFillerData
+    )
         internal
         view
         virtual
@@ -443,7 +446,14 @@ abstract contract Base7683 is IOriginSettler, IDestinationSettler {
      * @param _originData Data emitted on the origin chain to parameterize the fill.
      * @param _fillerData Data provided by the filler, including preferences and additional information.
      */
-    function _fillOrder(bytes32 _orderId, bytes calldata _originData, bytes calldata _fillerData) internal virtual;
+    function _fillOrder(
+        bytes32 _orderId,
+        bytes calldata _originData,
+        bytes calldata _fillerData
+    )
+        internal
+        virtual
+        returns (bytes32);
 
     /**
      * @notice Settles a batch of orders using their origin and filler data.

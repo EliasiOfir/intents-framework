@@ -38,6 +38,8 @@ abstract contract BasicSwap7683 is Base7683 {
     bytes32 public constant REFUNDED = "REFUNDED";
 
     // ============ Public Storage ============
+    mapping(bytes32 orderId => uint8 filledStep) filledSteps;
+    mapping(bytes32 orderId => uint8 lastStepTime) lastStepTimes;
 
     // ============ Upgrade Gap ============
     /// @dev Reserved storage slots for upgradeability.
@@ -64,6 +66,7 @@ abstract contract BasicSwap7683 is Base7683 {
     error InvalidOriginDomain(uint32 originDomain);
     error InvalidOrderId();
     error OrderFillExpired();
+    error OrderFillEarly();
     error InvalidOrderDomain();
     error InvalidDomain();
     error InvalidSender();
@@ -144,11 +147,11 @@ abstract contract BasicSwap7683 is Base7683 {
         bytes32 _messageSender,
         bytes32 _orderId,
         bytes32 _receiver
-    ) internal virtual {
-        (
-            bool isEligible,
-            OrderData memory orderData
-        ) = _checkOrderEligibility(_messageOrigin, _messageSender, _orderId);
+    )
+        internal
+        virtual
+    {
+        (bool isEligible, OrderData memory orderData) = _checkOrderEligibility(_messageOrigin, _messageSender, _orderId);
 
         if (!isEligible) return;
 
@@ -170,10 +173,7 @@ abstract contract BasicSwap7683 is Base7683 {
      * @param _orderId The ID of the order to refund.
      */
     function _handleRefundOrder(uint32 _messageOrigin, bytes32 _messageSender, bytes32 _orderId) internal virtual {
-        (
-            bool isEligible,
-            OrderData memory orderData
-        ) = _checkOrderEligibility(_messageOrigin, _messageSender, _orderId);
+        (bool isEligible, OrderData memory orderData) = _checkOrderEligibility(_messageOrigin, _messageSender, _orderId);
 
         if (!isEligible) return;
 
@@ -188,40 +188,45 @@ abstract contract BasicSwap7683 is Base7683 {
     }
 
     /**
-    * @notice Checks if order is eligible for settlement or refund .
-    * @dev Order must be OPENED and the message was sent from the appropriated chain and contract.
-    * @param _messageOrigin The origin domain of the message.
-    * @param _messageSender The sender identifier of the message.
-    * @param _orderId The unique identifier of the order.
-    * @return A boolean indicating if the order is valid, and the decoded OrderData structure.
-    */
+     * @notice Checks if order is eligible for settlement or refund .
+     * @dev Order must be OPENED and the message was sent from the appropriated chain and contract.
+     * @param _messageOrigin The origin domain of the message.
+     * @param _messageSender The sender identifier of the message.
+     * @param _orderId The unique identifier of the order.
+     * @return A boolean indicating if the order is valid, and the decoded OrderData structure.
+     */
     function _checkOrderEligibility(
         uint32 _messageOrigin,
         bytes32 _messageSender,
         bytes32 _orderId
-    ) internal virtual returns (bool, OrderData memory) {
+    )
+        internal
+        virtual
+        returns (bool, OrderData memory)
+    {
         OrderData memory orderData;
 
         // check if the order is opened to ensure it belongs to this domain, skip otherwise
         if (orderStatus[_orderId] != OPENED) return (false, orderData);
 
-        (,bytes memory _orderData) = abi.decode(openOrders[_orderId], (bytes32, bytes));
+        (, bytes memory _orderData) = abi.decode(openOrders[_orderId], (bytes32, bytes));
         orderData = OrderEncoder.decode(_orderData);
 
-        if (orderData.destinationDomain != _messageOrigin || orderData.destinationSettler != _messageSender)
+        if (orderData.destinationDomain != _messageOrigin || orderData.destinationSettler != _messageSender) {
             return (false, orderData);
+        }
 
         return (true, orderData);
     }
 
     /**
-    * @notice Transfers tokens or ETH out of the contract.
-    * @dev If _token is the zero address, transfers ETH using a safe method; otherwise, performs an ERC20 token
-    * transfer.
-    * @param _token The address of the token to transfer (use address(0) for ETH).
-    * @param _to The recipient address.
-    * @param _amount The amount of tokens or ETH to transfer.
-    */
+     * @notice Transfers tokens or ETH out of the contract.
+     * @dev If _token is the zero address, transfers ETH using a safe method; otherwise, performs an ERC20 token
+     * transfer.
+     * @param _token The address of the token to transfer (use address(0) for ETH).
+     * @param _to The recipient address.
+     * @param _amount The amount of tokens or ETH to transfer.
+     */
     function _transferTokenOut(address _token, address _to, uint256 _amount) internal {
         if (_token == address(0)) {
             Address.sendValue(payable(_to), _amount);
@@ -268,7 +273,10 @@ abstract contract BasicSwap7683 is Base7683 {
      * @return The order ID.
      * @return The order nonce.
      */
-    function _resolveOrder(GaslessCrossChainOrder memory _order, bytes calldata)
+    function _resolveOrder(
+        GaslessCrossChainOrder memory _order,
+        bytes calldata
+    )
         internal
         view
         virtual
@@ -382,22 +390,58 @@ abstract contract BasicSwap7683 is Base7683 {
      * @param _originData The origin data of the order.
      * Additional data related to the order (unused).
      */
-    function _fillOrder(bytes32 _orderId, bytes calldata _originData, bytes calldata) internal override {
+    function _fillOrder(
+        bytes32 _orderId,
+        bytes calldata _originData,
+        bytes calldata
+    )
+        internal
+        override
+        returns (bytes32)
+    {
         OrderData memory orderData = OrderEncoder.decode(_originData);
 
         if (_orderId != OrderEncoder.id(orderData)) revert InvalidOrderId();
-        if (block.timestamp > orderData.fillDeadline) revert OrderFillExpired();
+
+        // default value of 1 part
+        uint32 parts = orderData.parts > 0 ? orderData.parts : 1;
+
+        if (parts > 1) {
+            uint8 prevStep = filledSteps[_orderId];
+            uint32 timeFrame = (orderData.fillDeadline - orderData.startTime) / parts;
+
+            // covers both startTime prevStep * timeFrame is actually startTime in case of 1 part or the first part
+            if (block.timestamp < prevStep * timeFrame) revert OrderFillEarly();
+            // covers both deadline (prevStep + 1) * timeFrame is actually deadline in case of 1 part or the last part
+            if (block.timestamp > (prevStep + 1) * timeFrame) revert OrderFillExpired();
+        } else {
+            // else can be dropped but more efficient
+            if (block.timestamp > orderData.fillDeadline) revert OrderFillExpired();
+            if (block.timestamp < orderData.startTime) revert OrderFillEarly();
+        }
+
         if (orderData.destinationDomain != _localDomain()) revert InvalidOrderDomain();
 
         address outputToken = TypeCasts.bytes32ToAddress(orderData.outputToken);
         address recipient = TypeCasts.bytes32ToAddress(orderData.recipient);
 
         if (outputToken == address(0)) {
-            if (orderData.amountOut != msg.value) revert InvalidNativeAmount();
+            if (orderData.amountOut / parts != msg.value) revert InvalidNativeAmount();
             Address.sendValue(payable(recipient), orderData.amountOut);
         } else {
-            IERC20(outputToken).safeTransferFrom(msg.sender, recipient, orderData.amountOut);
+            IERC20(outputToken).safeTransferFrom(msg.sender, recipient, orderData.amountOut / parts);
         }
+
+        // This if can be dropped, here for efficiency
+        if (parts != 1) {
+            filledSteps[_orderId]++;
+
+            if (orderData.parts > filledSteps[_orderId]) {
+                return PART;
+            }
+        }
+
+        return FILLED;
     }
 
     /**

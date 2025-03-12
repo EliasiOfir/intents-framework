@@ -72,7 +72,10 @@ contract Base7683ForTest is Base7683, StdCheats {
         counterpart = _counterpart;
     }
 
-    function _resolveOrder(GaslessCrossChainOrder memory order, bytes calldata)
+    function _resolveOrder(
+        GaslessCrossChainOrder memory order,
+        bytes calldata
+    )
         internal
         view
         override
@@ -151,10 +154,20 @@ contract Base7683ForTest is Base7683, StdCheats {
         return keccak256(order.orderData);
     }
 
-    function _fillOrder(bytes32 _orderId, bytes calldata _originData, bytes calldata _fillerData) internal override {
+    function _fillOrder(
+        bytes32 _orderId,
+        bytes calldata _originData,
+        bytes calldata _fillerData
+    )
+        internal
+        override
+        returns (bytes32)
+    {
         filledId = _orderId;
         filledOriginData = _originData;
         filledFillerData = _fillerData;
+
+        return FILLED;
     }
 
     function _settleOrders(
